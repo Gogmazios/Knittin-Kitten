@@ -1,0 +1,688 @@
+namespace kitten_corral
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // Is the game still running?
+        string gameOn = "yes";
+
+        // Score
+        int score;
+
+        // Countdown timer
+        int countdown = 31;
+
+        // Which WASD key was pressed
+        string moveDirection;
+
+        // Which direction the kitty is facing
+        string kittyDirection = "left";
+
+        // How fast the kitty is moving
+        int speed = 2;
+
+        // Is KITTY POWER activated?
+        string catnipPower = "no";
+        int catnipCountdown = 3;
+
+        // Location randomizer values
+        int randX;
+        int randY;
+
+        // Hoping this helps with not reinitializing the randomizer
+        // Oh wow, yeah. This makes a big difference. Always declare
+        // your random number in a global and just use .Next in methods.
+        Random randNum = new Random();
+
+        // Possible target colors
+        string[] yarnColors = { "beige", "red", "blue", "green", "pink" };
+        string targetColor;
+        int targetIndex;
+
+        // List of possible starting locations.
+        // Need at least 29 locations. Highest Y value is 384.
+        List<List<int>> newItemLocations = new List<List<int>> {
+            new List<int> { 5, 384 },
+            new List<int> { 12, 12 },
+            new List<int> { 12, 143 },
+            new List<int> { 15, 209 },
+            new List<int> { 54, 384 },
+            new List<int> { 108, 321 },
+            new List<int> { 135, 167 },
+            new List<int> { 154, 384 },
+            new List<int> { 175, 320 },
+            new List<int> { 198, 88 },
+            new List<int> { 199, 151 },
+            new List<int> { 213, 208 }, // NOTE: Some of these locations may still overlap.
+            new List<int> { 264, 12 },
+            new List<int> { 267, 132 },
+            new List<int> { 275, 250 },
+            new List<int> { 300, 199 },
+            new List<int> { 306, 384 },
+            new List<int> { 359, 227 },
+            new List<int> { 367, 384 },
+            new List<int> { 383, 50 },
+            new List<int> { 400, 351 },
+            new List<int> { 402, 100 },
+            new List<int> { 419, 167 },
+            new List<int> { 451, 205 },
+            new List<int> { 462, 366 },
+            new List<int> { 464, 74 },
+            new List<int> { 495, 136 },
+            new List<int> { 495, 260 },
+            new List<int> { 495, 361 },
+            new List<int> { 557, 117 },
+            new List<int> { 607, 12 },
+            new List<int> { 607, 211 },
+            new List<int> { 607, 384 },
+            new List<int> { 609, 155 },
+        };
+
+        // Is the goldfish still in his bowl?
+        string fishAlive = "yes";
+
+        // Key capture
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Somewhat clumsy way to freeze the controls on a game over.
+            if (gameOn == "yes")
+            {
+                // W (up) was pressed
+                if (e.KeyCode == Keys.W)
+                {
+                    moveDirection = "up";
+
+                    // Stop kitty from going off the board
+                    if (kittyPic.Location.Y >= 5)
+                    {
+                        kittyTimer.Start();
+                    }
+                }
+
+                // A (left) was pressed
+                if (e.KeyCode == Keys.A)
+                {
+                    moveDirection = "left";
+
+                    // Check current direction
+                    if (kittyDirection == "right")
+                    {
+                        kittyDirection = "left";
+
+                        if (catnipPower == "yes")
+                        {
+                            kittyPic.Image = Properties.Resources.kitty_super_blink_left;
+                        }
+                        else
+                        {
+                            kittyPic.Image = Properties.Resources.kitty_left_40;
+                        }
+                    }
+
+                    // Stop kitty from going off the board
+                    if (kittyPic.Location.X >= 2)
+                    {
+                        kittyTimer.Start();
+                    }
+                }
+
+                // D (right) was pressed
+                if (e.KeyCode == Keys.D)
+                {
+                    moveDirection = "right";
+
+                    // Check current direction
+                    if (kittyDirection == "left")
+                    {
+                        kittyDirection = "right";
+
+                        if (catnipPower == "yes")
+                        {
+                            kittyPic.Image = Properties.Resources.kitty_super_blink_right;
+                        }
+                        else
+                        {
+                            kittyPic.Image = Properties.Resources.kitty_right_40;
+                        }
+                    }
+
+                    // Stop kitty from going off the board
+                    if (kittyPic.Location.X <= 615)
+                    {
+                        kittyTimer.Start();
+                    }
+                }
+
+                // S (down) was pressed
+                if (e.KeyCode == Keys.S)
+                {
+                    moveDirection = "down";
+
+                    // Stop kitty from going off the board
+                    if (kittyPic.Location.Y <= 494)
+                    {
+                        kittyTimer.Start();
+                    }
+                }
+            }
+        }
+
+        // Countdown timer
+        private void countdownTimer_Tick(object sender, EventArgs e)
+        {
+            // Decrement the timer by one, but can't be less than zero.
+            countdown = countdown - 1;
+
+            if (countdown < 0)
+            {
+                countdown = 0;
+            }
+
+            countdownDisplay.Text = countdown.ToString();
+
+            if (countdown == 0)
+            {
+                // Shut down all the timers.
+                countdownTimer.Stop();
+                kittyTimer.Stop();
+                catnipTimer.Stop();
+                catnipPower = "no";
+                gameOn = "no";
+
+                // Reveal the play again button
+                //playAgainButton.Visible = true;
+
+                // Kitten is sittin
+                kittyPic.Image = Properties.Resources.kitty_idle_right_40;
+
+                MessageBox.Show("Time's up!");
+                feedbackLabel.Text = "Thanks for playing!";
+            }
+        }
+
+        // Does freaky stuff if the kitty eats the catnip
+        private void catnipTimer_Tick(object sender, EventArgs e)
+        {
+            //MessageBox.Show("catnipCountdown = " + catnipCountdown.ToString());
+
+            if (catnipCountdown > countdown)
+            {
+                catnipCountdown = countdown;
+            }
+
+            if (catnipCountdown > 0)
+            {
+                catnipCountdown = catnipCountdown - 1;
+
+                // Randomly change yarn colors!
+                PictureBox[] allYarn = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5, yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10, yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15, yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20, yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+                List<Image> allColors = new List<Image> { Properties.Resources.yarn_beige1, Properties.Resources.yarn_red1, Properties.Resources.yarn_blue, Properties.Resources.yarn_green1, Properties.Resources.yarn_pink1 };
+
+                for (int i = 0; i < allYarn.Count(); i++)
+                {
+                    int randColor = randNum.Next(allColors.Count());
+                    allYarn[i].Image = allColors[randColor];
+                    allYarn[i].Tag = yarnColors[randColor];
+                }
+
+            }
+            else
+            {
+                catnipTimer.Stop();
+                catnipPower = "no";
+
+                if (kittyDirection == "left")
+                {
+                    kittyPic.Image = Properties.Resources.kitty_left_40;
+                }
+                else
+                {
+                    kittyPic.Image = Properties.Resources.kitty_right_40;
+                }
+            }
+        }
+
+        // Moves the kitty in the requested direction;
+        // stops the timer if the location is out of bounds
+        private void kittyTimer_Tick(object sender, EventArgs e)
+        {
+            if (moveDirection == "up")
+            {
+                kittyPic.Top -= speed;
+
+                // See if the kitty found a yarn ball
+                checkYarnBall();
+
+                // See if the kitty scored some 'nip
+                checkCatnip();
+
+                // See if the kitty grabs the needles
+                checkKnittingNeedles();
+
+                // See if the kitty gets her snack
+                if (fishAlive == "yes")
+                {
+                    checkFishBowl();
+                }
+
+                if (kittyPic.Location.Y < 5)
+                {
+                    kittyTimer.Stop();
+                }
+            }
+
+            if (moveDirection == "left")
+            {
+                kittyPic.Left -= speed;
+
+                // See if the kitty found a yarn ball
+                checkYarnBall();
+
+                // See if the kitty scored some 'nip
+                checkCatnip();
+
+                // See if the kitty grabs the needles
+                checkKnittingNeedles();
+
+                // See if the kitty gets her snack
+                if (fishAlive == "yes")
+                {
+                    checkFishBowl();
+                }
+
+                if (kittyPic.Location.X < 3)
+                {
+                    kittyTimer.Stop();
+                }
+            }
+ 
+            if (moveDirection == "right")
+            {
+                kittyPic.Left += speed;
+
+                // See if the kitty found a yarn ball
+                checkYarnBall();
+
+                // See if the kitty scored some 'nip
+                checkCatnip();
+
+                // See if the kitty grabs the needles
+                checkKnittingNeedles();
+
+                // See if the kitty gets her snack
+                if (fishAlive == "yes")
+                {
+                    checkFishBowl();
+                }
+
+                if (kittyPic.Location.X > 615)
+                {
+                    kittyTimer.Stop();
+                }
+            }
+
+            if (moveDirection == "down")
+            {
+                kittyPic.Top += speed;
+
+                // See if the kitty found a yarn ball
+                checkYarnBall();
+
+                // See if the kitty scored some 'nip
+                checkCatnip();
+
+                // See if the kitty grabs the needles
+                checkKnittingNeedles();
+
+                // See if the kitty gets her snack
+                if (fishAlive == "yes")
+                {
+                    checkFishBowl();
+                }
+
+                // This is a problem. I don't know how to stop her from
+                // sliding down under the score board. I think it's bc
+                // she actually changes containers when she reaches it.
+                if (kittyPic.Location.Y > 383)
+                {
+                    kittyTimer.Stop();
+                }
+            }
+        }
+
+        // Adjust the score up or down
+        private void adjustScore(int x)
+        {
+            score = score + x;
+
+            // You can't get a score less than 0.
+            if (score < 0)
+            {
+                score = 0;
+            }
+
+            // Score feedback.
+            scoreDisplay.Text = score.ToString();
+        }
+
+        // Check to see if the kitty reached a yarn ball
+        private void checkYarnBall()
+        {
+            // Stop the timer, determine if the yarn ball
+            // is the target color or not.
+
+            //PictureBox[] chosenFive = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5 };
+            PictureBox[] allYarn = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5, yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10, yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15, yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20, yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+            List<Image> allColors = new List<Image> { Properties.Resources.yarn_beige1, Properties.Resources.yarn_red1, Properties.Resources.yarn_blue, Properties.Resources.yarn_green1, Properties.Resources.yarn_pink1 };
+            Image targIm = allColors[targetIndex];
+
+            for (int i = 0; i < 25; i++)
+            {
+                if ((kittyPic.Bounds.IntersectsWith(allYarn[i].Bounds)) && (allYarn[i].Visible == true))
+                {
+                    kittyTimer.Stop();
+                    allYarn[i].Visible = false;
+
+                    //MessageBox.Show("targetIndex = " + targetIndex.ToString());
+                    //MessageBox.Show(allYarn[i].Image.GetThumbnailImage);
+
+                    if (allYarn[i].Tag == targetColor)
+                    {
+                        feedbackLabel.Text = "Excellent!";
+                        adjustScore(1);
+                    }
+                    else
+                    {
+                        feedbackLabel.Text = "Oops! Wrong color.";
+                        adjustScore(-1);
+                    }
+                }
+            }            
+        }
+
+        // Check to see if the kitty scored some 'nip.
+        // This is going to halt the countdownTimer
+        // for x seconds, then restart it and reset the pics.
+        // Also adds time to the clock.
+        private void checkCatnip()
+        {
+            if (kittyPic.Bounds.IntersectsWith(catnipPic.Bounds))
+            {
+                if (catnipPic.Visible == true)
+                {
+                    kittyTimer.Stop();
+                    catnipPic.Visible = false;
+                    catnipPower = "yes";
+                    //countdown = countdown + 10;
+                    feedbackLabel.Text = "KITTY POWER ACTIVATE!";
+
+                    catnipTimer.Start();
+
+                    // Update the picture
+                    if (kittyDirection == "left")
+                    {
+                        kittyPic.Image = Properties.Resources.kitty_super_blink_left;
+                    }
+                    else
+                    {
+                        kittyPic.Image = Properties.Resources.kitty_super_blink_right;
+                    }     
+                }
+            }
+        }
+
+        // Check to see if the kitty grabbed the knitting needles.
+        // This has a special function at the end of the game,
+        // just not sure what it is yet, haha.
+        private void checkKnittingNeedles()
+        {
+            if (kittyPic.Bounds.IntersectsWith(needlesPic.Bounds))
+            {
+                if (needlesPic.Visible == true)
+                {
+                    kittyTimer.Stop();
+                    needlesPic.Visible = false;
+                    feedbackLabel.Text = "You got the knitting needles!";
+                    adjustScore(10);
+                    countdown = 0;
+                }
+            }
+        }
+
+        // Check to see if the kitty reached the goldfish bowl
+        private void checkFishBowl()
+        {
+            if (kittyPic.Bounds.IntersectsWith(goldfishBowl.Bounds))
+            {
+                kittyTimer.Stop();
+                fishAlive = "no";
+                speed = 3;
+                goldfishBowl.Image = Properties.Resources.goldfish_bowl_empty2;
+                //MessageBox.Show("Lunch is served!");
+                feedbackLabel.Text = "Lunch is served!";
+            }
+        }
+
+        // Key was released; stop the movement timer
+        private void Form1_KeyUp(object sender, EventArgs e)
+        {
+            kittyTimer.Stop();
+        }
+
+        // Exit the game
+        private void exitButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        // Pauses the kitty on a mouseover
+        // NOTE: I want to umm delete these, but it gives me
+        // a build error when I do. :/
+        private void mouseOverKitty(object sender, EventArgs e)
+        {
+            /*if (kittyDirection == "right")
+            {
+                kittyPic.Image = Properties.Resources.kitty_idle_right_40;
+            }
+            else
+            {
+                kittyPic.Image = Properties.Resources.kitty_idle_left_40;
+            }*/
+        }
+
+        // Unpauses the kitty when the mouse retreats
+        private void mouseLeaveKitty(object sender, EventArgs e)
+        {
+            /*if (kittyDirection == "right")
+            {
+                kittyPic.Image = Properties.Resources.kitty_right_40;
+            }
+            else
+            {
+                kittyPic.Image = Properties.Resources.kitty_left_40;
+            }*/
+        }
+
+        // Randomize starting location for all objects
+        // from a preset pool of coordinates.
+        private void randomizeLocation()
+        {
+            int whereThing = randNum.Next(newItemLocations.Count());
+
+            randX = newItemLocations[whereThing][0];
+            randY = newItemLocations[whereThing][1];
+
+            newItemLocations.RemoveAt(whereThing);
+        }
+
+        // Ten billion objects get random starting locations.
+        private void setObjectLocations()
+        {
+            PictureBox[] allPics = { catnipPic, goldfishBowl, kittyPic, needlesPic, yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5, yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10, yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15, yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20, yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+
+            for (int i = 0; i < allPics.Count(); i++)
+            {
+                randomizeLocation();
+                allPics[i].Location = new Point(randX, randY);
+            }
+        }
+
+        // Determine target color and assign appropriate
+        // images to the first five yarn balls, and a
+        // random color to the rest.
+        private void setColors()
+        {
+            // Pick the target color
+            Random randColor = new Random();
+            int whichColor = randColor.Next(yarnColors.Count());
+            targetColor = yarnColors[whichColor];
+            targetIndex = whichColor;
+
+            // Assign the target color to the scoreboard yarn picture.
+            Image[] bigYarns = { Properties.Resources.yarn_beige, Properties.Resources.yarn_red, Properties.Resources.blue_yarn_big, Properties.Resources.green_yarn_big, Properties.Resources.yarn_pink_big};
+            targetYarnPic.Image = bigYarns[whichColor];
+
+            // Assign the target color to the Chosen Five
+            // beige, red, blue, green, pink
+            PictureBox[] chosenFive = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5 };
+            List<Image> allColors = new List<Image> { Properties.Resources.yarn_beige1, Properties.Resources.yarn_red1, Properties.Resources.yarn_blue, Properties.Resources.yarn_green1, Properties.Resources.yarn_pink1 };
+            Image newImage = allColors[whichColor];
+
+            for (int i = 0; i < 5; i++) // Note that the 5 is the number of PICTUREBOXES lol
+            {
+                chosenFive[i].Image = newImage;
+                chosenFive[i].Tag = targetColor;
+            }
+
+            // Remove the target color, assign five yarn balls
+            // to another arbitrary color. Remove THAT color,
+            // rinse and repeat.
+            allColors.RemoveAt(whichColor); // There are now FOUR colors left
+            PictureBox[] sixTen = { yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10 };
+            // Just use index of 0 because it doesn't matter what color these get
+            // assigned to since their location is randomized.
+
+            for (int i = 0; i < 5; i++)
+            {
+                sixTen[i].Image = allColors[0];
+            }
+
+            allColors.RemoveAt(0); // Now keep removing at index 0 since that's what you're using
+            // There are now THREE colors left
+            PictureBox[] elevenFifteen = { yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15 };
+
+            for (int i = 0; i < 5; i++)
+            {
+                elevenFifteen[i].Image = allColors[0];
+            }
+
+            allColors.RemoveAt(0); // There are now TWO colors left
+            PictureBox[] sixteenTwenty = { yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20 };
+
+            for (int i = 0; i < 5; i++)
+            {
+                sixteenTwenty[i].Image = allColors[0];
+            }
+
+            allColors.RemoveAt(0); // One color left
+            PictureBox[] lastSet = { yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+
+            for (int i = 0; i < 5; i++)
+            {
+                lastSet[i].Image = allColors[0];
+            }
+        }
+
+        // Initialize the game. Works on a restart.
+        // Note: disabling for now. I'd need to reinitialize all the lists...
+        /*private void initializeGame()
+        {
+            // Set the color for each yarn ball
+            setColors();
+
+            // Randomize starting locations for all objects.
+            setObjectLocations();
+
+            // Hide the splash page.
+            startButton.Visible = false;
+            titleLabel.Visible = false;
+            subheaderLabel.Visible = false;
+            instructionLabel.Visible = false;
+
+            // Hide restart button on a.. restart
+            playAgainButton.Visible = false;
+
+            // Reveal the game layout.
+            scorePanel.Visible = true;
+            kittyPic.Visible = true;
+            catnipPic.Visible = true;
+            goldfishBowl.Visible = true;
+            needlesPic.Visible = true;
+            targetYarnPic.Visible = true;
+            basketPic.Visible = true;
+
+            // Reveal all the wonderful randomized yarn balls.
+            PictureBox[] yarnPics = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5, yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10, yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15, yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20, yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+
+            for (int i = 0; i < yarnPics.Count(); i++)
+            {
+                yarnPics[i].Visible = true;
+            }
+
+            // Let the game begin! Seriously. This is the countdown timer.
+            countdownTimer.Start();
+            gameOn = "yes";
+        } */
+
+        // Initialize the game
+        private void startButton_Click(object sender, EventArgs e)
+        {
+            // Set the color for each yarn ball
+            setColors();
+
+            // Randomize starting locations for all objects.
+            setObjectLocations();
+            
+            // Hide the splash page.
+            startButton.Visible = false;
+            titleLabel.Visible = false;
+            subheaderLabel.Visible = false;
+            instructionLabel.Visible = false;
+
+            // Reveal the game layout.
+            scorePanel.Visible = true;
+            kittyPic.Visible = true;
+            catnipPic.Visible = true;
+            goldfishBowl.Visible = true;
+            needlesPic.Visible = true;
+            targetYarnPic.Visible = true;
+            basketPic.Visible = true;
+
+            // Reveal all the wonderful randomized yarn balls.
+            PictureBox[] yarnPics = { yarnPic1, yarnPic2, yarnPic3, yarnPic4, yarnPic5, yarnPic6, yarnPic7, yarnPic8, yarnPic9, yarnPic10, yarnPic11, yarnPic12, yarnPic13, yarnPic14, yarnPic15, yarnPic16, yarnPic17, yarnPic18, yarnPic19, yarnPic20, yarnPic21, yarnPic22, yarnPic23, yarnPic24, yarnPic25 };
+
+            for (int i = 0; i < yarnPics.Count(); i++)
+            {
+                yarnPics[i].Visible = true;
+            }
+
+            // Let the game begin! Seriously. This is the countdown timer.
+            countdownTimer.Start();
+        }
+
+        private void needlesPic_Click(object sender, EventArgs e)
+        {
+            // Accidental double click. Sigh.
+        }
+
+        private void playAgainButton_Click(object sender, EventArgs e)
+        {
+            // Don't feel like messing with all those lists again...
+            //initializeGame();
+        }
+    }
+}
